@@ -96,7 +96,7 @@ module.exports = {
 
   },
   title: 'Система аналізу медіа-контенту',
-  description: 'Лабораторні роботи з дисципліни "Організація баз даних"',
+  description: 'Курсова робота з дисципліни "Бази даних"',
   configureWebpack: {
     resolve: {
       alias: {

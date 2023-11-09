@@ -1,0 +1,169 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            Int            @id @default(autoincrement())
+  firstName     String         @map("first_name")
+  lastName      String         @map("last_name")
+  username      String         @unique
+  email         String         @unique
+  password      String
+  role          Role           @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  roleId        Int            @map("role_id")
+  actions       Action[]
+  feedbacks     Feedback[]
+  mediaRequests MediaRequest[]
+
+  @@map("users")
+}
+
+enum RoleName {
+  USER
+  TECHNICAL_EXPERT
+}
+
+model Role {
+  id          Int                 @id @default(autoincrement())
+  name        RoleName
+  description String?
+  users       User[]
+  permissions RoleHasPermission[]
+
+  @@map("roles")
+}
+
+model RoleHasPermission {
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  roleId       Int        @map("role_id")
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  permissionId Int        @map("permission_id")
+
+  @@id([roleId, permissionId])
+  @@map("role_has_permission")
+}
+
+model Permission {
+  id    Int                 @id @default(autoincrement())
+  name  String
+  roles RoleHasPermission[]
+
+  @@map("permissions")
+}
+
+model Feedback {
+  id             Int          @id @default(autoincrement())
+  body           String
+  rating         Float
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId         Int          @map("user_id")
+  mediaRequest   MediaRequest @relation(fields: [mediaRequestId], references: [id], onDelete: Cascade)
+  mediaRequestId Int          @map("media_request)id")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+
+  @@map("feedbacks")
+}
+
+model MediaRequest {
+  id          Int        @id @default(autoincrement())
+  name        String
+  description String?
+  keywords    String?
+  type        String
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      Int        @map("user_id")
+  feedbacks   Feedback[]
+  sources     BasedOn[]
+  actions     Action[]
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+
+  @@map("media_requests")
+}
+
+model BasedOn {
+  source         Source       @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  sourceId       Int          @map("source_id")
+  mediaRequest   MediaRequest @relation(fields: [mediaRequestId], references: [id], onDelete: Cascade)
+  mediaRequestId Int          @map("media_request_id")
+
+  @@id([sourceId, mediaRequestId])
+  @@map("based_on")
+}
+
+model Source {
+  id            Int       @id @default(autoincrement())
+  name          String
+  url           String
+  mediaRequests BasedOn[]
+  labels        Label[]
+  actions       Action[]
+
+  @@map("sources")
+}
+
+model Label {
+  source   Source @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  sourceId Int    @map("source_id")
+  tag      Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  tagId    Int    @map("tag_id")
+
+  @@id([sourceId, tagId])
+  @@map("labels")
+}
+
+enum TagName {
+  SPORT
+  SCIENCE_AND_TECHOLOGY
+  ENTERTAINMENT
+  FASHION_AND_STYLE
+  MUSIC
+  FOOD_AND_COOKING
+  TOURISM
+  MOVIES_AND_TELEVISION
+}
+
+model Tag {
+  id     Int     @id @default(autoincrement())
+  name   TagName
+  labels Label[]
+
+  @@map("tags")
+}
+
+model Action {
+  mediaRequest   MediaRequest @relation(fields: [mediaRequestId], references: [id], onDelete: Cascade)
+  mediaRequestId Int          @map("media_request_id")
+  source         Source       @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  sourceId       Int          @map("source_id")
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId         Int          @map("user_id")
+  state          State        @relation(fields: [stateId], references: [id], onDelete: Cascade)
+  stateId        Int          @map("state_id")
+
+  @@id([mediaRequestId, sourceId, userId, stateId])
+  @@map("actions")
+}
+
+enum StateName {
+  SUBSCRIBE
+  UNSUBSCRIBE
+  QUARANTINE
+}
+
+model State {
+  id          Int       @id @default(autoincrement())
+  displayName StateName @map("display_name")
+  actions     Action[]
+
+  @@map("states")
+}

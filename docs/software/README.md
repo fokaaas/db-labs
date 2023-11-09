@@ -350,3 +350,579 @@ COMMIT;
 ```
 
 ## RESTfull сервіс для управління даними
+
+### Схема бази даних (ORM Prisma)
+
+```
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            Int            @id @default(autoincrement())
+  firstName     String         @map("first_name")
+  lastName      String         @map("last_name")
+  username      String         @unique
+  email         String         @unique
+  password      String
+  role          Role           @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  roleId        Int            @map("role_id")
+  actions       Action[]
+  feedbacks     Feedback[]
+  mediaRequests MediaRequest[]
+
+  @@map("users")
+}
+
+enum RoleName {
+  USER
+  TECHNICAL_EXPERT
+}
+
+model Role {
+  id          Int                 @id @default(autoincrement())
+  name        RoleName
+  description String?
+  users       User[]
+  permissions RoleHasPermission[]
+
+  @@map("roles")
+}
+
+model RoleHasPermission {
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  roleId       Int        @map("role_id")
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  permissionId Int        @map("permission_id")
+
+  @@id([roleId, permissionId])
+  @@map("role_has_permission")
+}
+
+model Permission {
+  id    Int                 @id @default(autoincrement())
+  name  String
+  roles RoleHasPermission[]
+
+  @@map("permissions")
+}
+
+model Feedback {
+  id             Int          @id @default(autoincrement())
+  body           String
+  rating         Float
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId         Int          @map("user_id")
+  mediaRequest   MediaRequest @relation(fields: [mediaRequestId], references: [id], onDelete: Cascade)
+  mediaRequestId Int          @map("media_request)id")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+
+  @@map("feedbacks")
+}
+
+model MediaRequest {
+  id          Int        @id @default(autoincrement())
+  name        String
+  description String?
+  keywords    String?
+  type        String
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      Int        @map("user_id")
+  feedbacks   Feedback[]
+  sources     BasedOn[]
+  actions     Action[]
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+
+  @@map("media_requests")
+}
+
+model BasedOn {
+  source         Source       @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  sourceId       Int          @map("source_id")
+  mediaRequest   MediaRequest @relation(fields: [mediaRequestId], references: [id], onDelete: Cascade)
+  mediaRequestId Int          @map("media_request_id")
+
+  @@id([sourceId, mediaRequestId])
+  @@map("based_on")
+}
+
+model Source {
+  id            Int       @id @default(autoincrement())
+  name          String
+  url           String
+  mediaRequests BasedOn[]
+  labels        Label[]
+  actions       Action[]
+
+  @@map("sources")
+}
+
+model Label {
+  source   Source @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  sourceId Int    @map("source_id")
+  tag      Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  tagId    Int    @map("tag_id")
+
+  @@id([sourceId, tagId])
+  @@map("labels")
+}
+
+enum TagName {
+  SPORT
+  SCIENCE_AND_TECHOLOGY
+  ENTERTAINMENT
+  FASHION_AND_STYLE
+  MUSIC
+  FOOD_AND_COOKING
+  TOURISM
+  MOVIES_AND_TELEVISION
+}
+
+model Tag {
+  id     Int     @id @default(autoincrement())
+  name   TagName
+  labels Label[]
+
+  @@map("tags")
+}
+
+model Action {
+  mediaRequest   MediaRequest @relation(fields: [mediaRequestId], references: [id], onDelete: Cascade)
+  mediaRequestId Int          @map("media_request_id")
+  source         Source       @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  sourceId       Int          @map("source_id")
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId         Int          @map("user_id")
+  state          State        @relation(fields: [stateId], references: [id], onDelete: Cascade)
+  stateId        Int          @map("state_id")
+
+  @@id([mediaRequestId, sourceId, userId, stateId])
+  @@map("actions")
+}
+
+enum StateName {
+  SUBSCRIBE
+  UNSUBSCRIBE
+  QUARANTINE
+}
+
+model State {
+  id          Int       @id @default(autoincrement())
+  displayName StateName @map("display_name")
+  actions     Action[]
+
+  @@map("states")
+}
+```
+
+### Модуль та сервіс підключення до бази даних
+
+```ts
+import { Module } from '@nestjs/common';
+import { PrismaService } from './prisma.service';
+
+@Module({
+  providers: [PrismaService],
+  exports: [PrismaService]
+})
+export class PrismaModule {}
+```
+
+```ts
+import { Injectable, OnModuleInit } from '@nestjs/common';
+import { PrismaClient } from '@prisma/client';
+
+@Injectable()
+export class PrismaService extends PrismaClient implements OnModuleInit {
+  async onModuleInit() {
+    await this.$connect();
+  }
+}
+```
+
+### Модуль та контролер для отримання запитів
+
+```ts
+import { Module } from '@nestjs/common';
+import { FeedbackController } from './feedback.controller';
+import { FeedbackService } from './feedback.service';
+import { PrismaModule } from '../prisma/prisma.module';
+
+@Module({
+  controllers: [FeedbackController],
+  providers: [FeedbackService],
+  imports: [PrismaModule],
+})
+export class FeedbackModule {}
+```
+
+```ts
+import { Body, Controller, Delete, Get, Param, ParseIntPipe, Patch, Post } from '@nestjs/common';
+import { CreateFeedbackDTO } from './create.feedback.dto';
+import { FeedbackService } from './feedback.service';
+import { FeedbackResponse } from './feedback.response';
+import { UpdateFeedbackDTO } from './update.feedback.dto';
+import { FeedbackPipe } from '../pipes/feedback.pipe';
+import { FeedbackBodyPipe } from '../pipes/feedback.body.pipe';
+import { ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
+
+@ApiTags('Feedback')
+@Controller('/feedbacks')
+export class FeedbackController {
+  constructor(
+    private feedbackService: FeedbackService,
+  ) {}
+
+  @ApiOkResponse({
+    type: FeedbackResponse,
+  })
+  @ApiNotFoundResponse({
+    description: `
+      User was not found
+      Media Request was not found`
+  })
+  @ApiOperation({
+    summary: 'Create new feedback',
+    description: 'Endpoint for creating a new feedback to a media request by the user'
+  })
+  @Post()
+  async create (
+    @Body(FeedbackBodyPipe) body: CreateFeedbackDTO,
+  ): Promise<FeedbackResponse> {
+    return this.feedbackService.create(body);
+  }
+
+  @ApiOkResponse({
+    type: FeedbackResponse,
+  })
+  @ApiNotFoundResponse({
+    description: `
+      Feedback was not found
+      User was not found
+      Media Request was not found`
+  })
+  @ApiParam({
+    name: 'id',
+    type: Number,
+    required: true,
+    description: 'Id of existing feedback',
+  })
+  @ApiOperation({
+    summary: 'Update an existing feedback',
+    description: 'Endpoint for updating existing feedback'
+  })
+  @Patch('/:id')
+  async update (
+    @Param('id', ParseIntPipe) id: number,
+    @Body(FeedbackBodyPipe) body: UpdateFeedbackDTO,
+  ): Promise<FeedbackResponse> {
+    return this.feedbackService.update(id, body);
+  }
+
+  @ApiOkResponse({
+    type: FeedbackResponse,
+  })
+  @ApiNotFoundResponse({
+    description: `
+      Feedback was not found`
+  })
+  @ApiParam({
+    name: 'id',
+    type: Number,
+    required: true,
+    description: 'Id of existing feedback',
+  })
+  @ApiOperation({
+    summary: 'Get an existing feedback',
+    description: 'Endpoint for getting existing feedback'
+  })
+  @Get('/:id')
+  async get (
+    @Param('id', ParseIntPipe, FeedbackPipe) id: number,
+  ): Promise<FeedbackResponse> {
+    return this.feedbackService.get(id);
+  }
+
+  @ApiOkResponse({
+    type: FeedbackResponse,
+  })
+  @ApiNotFoundResponse({
+    description: `
+      Feedback was not found`
+  })
+  @ApiParam({
+    name: 'id',
+    type: Number,
+    required: true,
+    description: 'Id of existing feedback',
+  })
+  @ApiOperation({
+    summary: 'Delete an existing feedback',
+    description: 'Endpoint for deleting existing feedback'
+  })
+  @Delete('/:id')
+  async delete (
+    @Param('id', ParseIntPipe) id: number,
+  ): Promise<FeedbackResponse> {
+    return this.feedbackService.delete(id);
+  }
+}
+```
+
+### Сервіс для обробки запитів
+
+```ts
+import { Injectable } from '@nestjs/common';
+import { CreateFeedbackDTO } from './create.feedback.dto';
+import { PrismaService } from '../prisma/prisma.service';
+import { UpdateFeedbackDTO } from './update.feedback.dto';
+import { FeedbackResponse } from './feedback.response';
+
+@Injectable()
+export class FeedbackService {
+  constructor(
+    private prisma: PrismaService,
+  ) {}
+
+  async create (data: CreateFeedbackDTO): Promise<FeedbackResponse> {
+    return this.prisma.feedback.create({ data });
+  }
+
+  async update (id: number, data: UpdateFeedbackDTO): Promise<FeedbackResponse> {
+    return this.prisma.feedback.update({
+      where: { id },
+      data,
+    })
+  }
+
+  async get (id: number): Promise<FeedbackResponse> {
+    return this.prisma.feedback.findUnique({
+      where: { id },
+    })
+  }
+
+  async delete (id: number): Promise<FeedbackResponse> {
+    return this.prisma.feedback.delete({
+      where: { id },
+    })
+  }
+}
+```
+
+### DTO для створення відгуків
+
+```ts
+import { IsNotEmpty } from 'class-validator';
+import { Transform } from 'class-transformer';
+import { ApiProperty } from '@nestjs/swagger';
+
+export class CreateFeedbackDTO {
+  @ApiProperty({
+    description: 'Main text of the feedback',
+  })
+  @IsNotEmpty()
+    body: string;
+
+  @ApiProperty({
+    description: 'Rating left by the user',
+  })
+  @IsNotEmpty()
+    rating: number;
+
+  @ApiProperty({
+    description: 'The id of the user who provided the feedback'
+  })
+  @Transform(({ value }) => parseInt(value))
+  @IsNotEmpty()
+    userId: number;
+
+  @ApiProperty({
+    description: 'Id of the media request to which feedback was given'
+  })
+  @Transform(({ value }) => parseInt(value))
+  @IsNotEmpty()
+    mediaRequestId: number;
+}
+```
+
+### DTO для оновлення відгуків
+
+```ts
+import { IsOptional } from 'class-validator';
+import { Transform } from 'class-transformer';
+import { ApiPropertyOptional } from '@nestjs/swagger';
+
+export class UpdateFeedbackDTO {
+  @ApiPropertyOptional({
+    description: 'Main text of the feedback',
+  })
+  @IsOptional()
+    body?: string;
+
+  @ApiPropertyOptional({
+    description: 'Rating left by the user',
+  })
+  @Transform(({ value }) => parseInt(value))
+  @IsOptional()
+    rating?: number;
+
+  @ApiPropertyOptional({
+    description: 'The id of the user who provided the feedback',
+  })
+  @Transform(({ value }) => parseInt(value))
+  @IsOptional()
+    userId?: number;
+
+  @ApiPropertyOptional({
+    description: 'Id of the media request to which feedback was given',
+  })
+  @IsOptional()
+    mediaRequestId?: number;
+}
+```
+
+### Exception та Pipes для валідації даних і обробки помилок клієнта
+
+```ts
+import { HttpException, HttpStatus } from '@nestjs/common';
+
+export class EntityException extends HttpException {
+  constructor(entity: string) {
+    super(`${entity} was not found`, HttpStatus.NOT_FOUND);
+  }
+}
+```
+
+```ts
+import { Injectable, PipeTransform } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
+import { EntityException } from '../exceptions/entity.exception';
+
+@Injectable()
+export class FeedbackPipe implements PipeTransform {
+  constructor(
+    private prisma: PrismaService,
+  ) {}
+
+  async transform (id: number) {
+    const feedback = await this.prisma.feedback.findUnique({ where: { id } });
+    if (!feedback) throw new EntityException('Feedback');
+    return id;
+  }
+}
+```
+
+```ts
+import { Injectable, PipeTransform } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
+import { EntityException } from '../exceptions/entity.exception';
+import { UpdateFeedbackDTO } from '../feedback/update.feedback.dto';
+
+@Injectable()
+export class FeedbackBodyPipe implements PipeTransform {
+  constructor(
+    private prisma: PrismaService,
+  ) {}
+
+  async transform (body: UpdateFeedbackDTO) {
+    if (body.userId) {
+      const user = await this.prisma.user.findUnique({
+        where: {
+          id: body.userId,
+        }
+      });
+      if (!user) throw new EntityException('User');
+    }
+
+    if (body.mediaRequestId) {
+      const mediaRequest = await this.prisma.mediaRequest.findUnique({
+        where: {
+          id: body.mediaRequestId,
+        }
+      });
+      if (!mediaRequest) throw new EntityException('Media Request');
+    }
+
+    return body;
+  }
+}
+```
+
+### App модуль та головний модуль програми
+
+```ts
+import { Module } from '@nestjs/common';
+import { FeedbackModule } from './feedback/feedback.module';
+
+@Module({
+  imports: [FeedbackModule],
+})
+export class AppModule {}
+```
+
+```ts
+import { NestFactory } from '@nestjs/core';
+import { AppModule } from './app.module';
+import * as process from 'process';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+
+const port = process.env.PORT;
+
+async function bootstrap() {
+  const app = await NestFactory.create(AppModule);
+
+  const config = new DocumentBuilder()
+    .setTitle('Media content analysis system')
+    .setDescription('Restful service for analyzing media content')
+    .setVersion('1.0')
+    .build();
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('api', app, document);
+
+  await app.listen(port, () => console.log(`Server started on 127.0.0.1:${port}`));
+}
+bootstrap();
+```
+
+## Документація Swagger
+
+Документація доступна за шляхом <BASE_URL>/api
+
+### POST /feedback
+
+<p align="center">
+    <img src="./media/post-1.png">
+    <br><br>
+    <img src="./media/post-2.png">
+</p>
+
+### PATCH /feedback/:id
+
+<p align="center">
+    <img src="./media/patch-1.png">
+    <br><br>
+    <img src="./media/patch-2.png">
+</p>
+
+### GET /feedback/:id
+
+<p align="center">
+    <img src="./media/get-1.png">
+    <br><br>
+    <img src="./media/get-2.png">
+</p>
+
+### DELETE /feedback/:id
+
+<p align="center">
+    <img src="./media/delete-1.png">
+    <br><br>
+    <img src="./media/delete-2.png">
+</p>
