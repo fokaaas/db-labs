@@ -31,3 +31,21 @@
 <p align="center">
     <img src="./media/delete.png">
 </p>
+
+## EXCEPTION: User was not found
+
+<p align="center">
+    <img src="./media/ex-user.png">
+</p>
+
+## EXCEPTION: Feedback was not found
+
+<p align="center">
+    <img src="./media/ex-feedback.png">
+</p>
+
+## EXCEPTION: Media request was not found
+
+<p align="center">
+    <img src="./media/ex-request.png">
+</p>
