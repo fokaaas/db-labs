@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("Action REST API")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+39b857ac5fdadb393eb3bdb50fd9eec893013574")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+795d99e8c91ef85f44c7983356bb7ab1c911d3b2")]
 [assembly: System.Reflection.AssemblyProductAttribute("Action REST API")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Action REST API")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

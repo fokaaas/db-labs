@@ -3,25 +3,14 @@ home: true
 actionText: Розпочати →
 actionLink: /intro/
 
-footer: "ECL 2.0 Licensed | Copyright © 2023 Stanislav Basarab"
+footer: "ECL 2.0 Licensed | Copyright © 2023 Nazarii Horchynskyi"
 ---
 
 
-**Виконали:** 
-
-*студент 2-го курсу, групи ІМ-22*<span padding-right:5em></span> **Станіслав БАСАРАБ** [Telegram](https://t.me/stbasarab)
-
-*студент 2-го курсу, групи ІМ-22*<span padding-right:5em></span> **Даниіл ТИМОФЕЄВ** [Telegram](https://t.me/DanioRerio8)
-
-*студент 2-го курсу, групи ІМ-22*<span padding-right:5em></span> **Павло ВЛАСЮК** [Telegram](https://t.me/pseudo_otter)
-
-*студент 2-го курсу, групи ІМ-22*<span padding-right:5em></span> **Богдан ЯРМОЛКА** [Telegram](https://t.me/TheBladeHit)
+**Виконав:** 
 
 *студент 2-го курсу, групи ІМ-22*<span padding-right:5em></span> **Назарій ГОРЧИНСЬКИЙ** [Telegram](https://t.me/Nazg0_r)
 
-*студент 2-го курсу, групи ІМ-22*<span padding-right:5em></span> **Дар'я ЧЕРНИКОВА** [Telegram](https://t.me/DD_Che)
-
-*студент 2-го курсу, групи ІМ-22*<span padding-right:5em></span> **Назарій РАДІЧЕНКО** [Telegram](https://t.me/radikhh)
 
 
 **Керівник**

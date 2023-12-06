@@ -50,7 +50,7 @@ namespace Action_REST_API.Controllers
             var newAction = new Action()
             {
                 Id = action.Id,
-                CraetedAt = creationTime,
+                CraetedAt = action.CraetedAt,
                 StateId = new Random().Next(1, 1),                            // StateId = action.State.Id,
                 MediaRequestId = new Random().Next(1, 1),                     // MediaRequestId = action.MediaRequest.Id
                 SourceId = new Random().Next(1, 1),                           // SourceId = action.Source.Id
@@ -60,7 +60,7 @@ namespace Action_REST_API.Controllers
             await _db.Actions.AddAsync(newAction);
             await _db.SaveChangesAsync();
 
-            var newActionViwe = await _db.ActionViwe.FirstOrDefaultAsync(a => a.time == creationTime);
+            var newActionViwe = _db.ActionViwe.ToList().Find(a => a.time.ToShortTimeString() == newAction!.CraetedAt.ToShortTimeString());
 
             return CreatedAtAction("Post", newActionViwe);
         }
@@ -77,7 +77,7 @@ namespace Action_REST_API.Controllers
             _db.Actions.Update(workingAction);
             await _db.SaveChangesAsync();
 
-            var newActionViwe = _db.ActionViwe.FirstOrDefault(a => a.time == action.CraetedAt);
+            var newActionViwe = _db.ActionViwe.ToList().Find(a => a.time.ToShortTimeString() == workingAction!.CraetedAt.ToShortTimeString());
 
             return Ok(newActionViwe);
         }
